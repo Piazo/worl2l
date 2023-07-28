@@ -8,6 +8,9 @@ import geoplot
 import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Wordl2l", page_icon=":earth_asia:" ,layout="wide")
+df = pd.read_csv("./data/CountryData.csv")
+
+print(df)
 
 world = geopandas.read_file(geopandas.datasets.get_path('naturalearth_lowres'))
 if 'pick_new_country' not in st.session_state:
@@ -23,23 +26,33 @@ def reset_game():
     st.session_state.reset_game = False
 
 
-def get_country_list(world):
-    return sorted(world.drop_duplicates(subset=["name"])["name"].to_list())
+def reset():
+    st.session_state.countrySelected = ''
+
+
+
+
+def get_country_list(df):
+    return sorted(df["Country"].to_list())
 
 
 
 def get_random_country(df):
-    country_name = df.loc[random.randint(0, df.shape[0]-1), "name"]
-    return world.query('name == "{}"'.format(country_name))
+    return random.choice(df["Country"].to_list())
 
 
-def get_country_data_from_name(name):
+def get_geom_data_from_name(name):
     return world.query('name == "{}"'.format(name))
 
-def  display_country(fig):
+def get_country_data_from_name(name):
+    return  df[df['Country'] == name]
+
+
+def display_country(countryName):
     col21, col22, col23 = st.columns([1,4,1])
+    countryCode = get_country_data_from_name(countryName)["Abbreviation"].to_list()[0]
     with col22:
-        st.pyplot(fig=fig)
+        st.image(Image.open('./data/allShapes/'+countryCode.lower()+'.png'))
 
 
 def get_distance(country1, country2):
@@ -98,9 +111,10 @@ def get_orientation(country1, country2):
 def display_errors():
     for elem in st.session_state.choice_list[1:len(st.session_state.choice_list)]:
         if elem != '':
-            country_input = get_country_data_from_name(elem)
-            dist = get_distance(country_input, st.session_state.present_country)
-            orient = get_orientation(country_input, st.session_state.present_country)
+            present_country_geom_data = get_geom_data_from_name(st.session_state.present_country_name)
+            country_input = get_geom_data_from_name(elem)
+            dist = get_distance(country_input, present_country_geom_data)
+            orient = get_orientation(country_input, present_country_geom_data)
             if orient == "north":
                 st.write(f"{elem} distance: {dist}km :arrow_up:")
             elif orient == "south":
@@ -115,28 +129,24 @@ def display_errors():
 def display_game():
     col1, col2, col3 = st.columns(3)
     with col2:
-        
+
         with st.form("my_form"):
-            st.markdown("<h1 style='text-align: center; color: green;'>Oh le zinc c koi ce pays la ?</h1>", unsafe_allow_html=True)
+            st.markdown("<h1 style='text-align: center; color: green;'>Oh le zin c koi ce pays la ?</h1>", unsafe_allow_html=True)
             
             # At the init or when a game is won, we go through this to select a new country to display
             if st.session_state.pick_new_country:
-                fig, ax = plt.subplots()
-                thisCountry = get_random_country(world)
-                thisCountry.plot(ax=ax)
-                plt.axis('off')
+                thisCountryName = get_random_country(df)
                 st.session_state.pick_new_country = False
-                st.session_state['fig'] = fig
-                st.session_state['present_country'] = thisCountry
-                st.session_state['present_country_name'] = thisCountry["name"].to_list()[0]
+                # st.session_state['present_country'] = thisCountryName
+                st.session_state['present_country_name'] = thisCountryName
 
-            display_country(st.session_state.fig)
+            display_country(st.session_state['present_country_name'])
 
             ################ DISPLAY FORM FROM HERE ################
             col11, col12, col13 = st.columns([1,10,1])
             with col12:
-                country_list = [''] + get_country_list(world)
-                choice = st.selectbox(label = "Country:", options = country_list)
+                country_list = [''] + get_country_list(df)
+                choice = st.selectbox(label = "Country:", options = country_list, key='countrySelected')
                 st.session_state.choice_list.append(choice)
 
 
@@ -150,19 +160,13 @@ def display_game():
                         st.session_state.reset_game = True
                     else:
                         display_errors()
-                        
-display_game()
 
+# Check the nan value errors
+# TODO: reset choice when submitting
+
+display_game()
 
 if st.session_state.reset_game:
     col1, col2, col3 = st.columns([3,2,3])
     with col2:
         st.button("Ca repart pour ou tour ouuuuuu ?", key=None, help=None, on_click=reset_game(),  use_container_width=False)
-
-# with st.sidebar:
-#     options = ["Safe", "Risked", "Balanced"]
-#     investor_type = st.selectbox("Select your investor profile :", options, index=0)
-            
-
-
-
